@@ -1,0 +1,373 @@
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --border: #2a2e38;
+  --text: #e8eaed;
+  --muted: #9aa0ab;
+  --accent: #6ea8fe;
+  --accent-text: #06121f;
+  --user-bubble: #2b5fd9;
+  --model-bubble: #232733;
+  --error: #ff6b6b;
+  --gold: #ffc61a;
+}
+
+* { box-sizing: border-box; }
+
+/* Circuit-scan accent bar — same gold sweeping-light track used on the
+   UNICORN project: a row of small gold circuit-pad ticks with a
+   cyan-to-gold light beam sweeping across on a loop. Purely decorative,
+   shared brand element across projects. */
+.hazard-stripe {
+  height: 6px;
+  position: relative;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 17px,
+      var(--gold) 17px, var(--gold) 20px
+    ),
+    linear-gradient(90deg, #060a0d, #0c1620 45%, #060a0d);
+}
+.hazard-stripe::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(90deg,
+    transparent, rgba(79, 214, 255, 0.85), rgba(255, 198, 26, 0.95), transparent);
+  mix-blend-mode: screen;
+  animation: circuit-sweep 5s linear infinite;
+}
+@keyframes circuit-sweep {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hazard-stripe::after { animation: none; display: none; }
+}
+
+#site-footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 20px 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* Large, faded copy of the brand art centered behind the whole page — a
+   watermark, not a focal image. Fixed + low z-index keeps it pinned behind
+   the chat content regardless of scroll; pointer-events:none so it never
+   intercepts clicks/taps meant for the UI above it. */
+.brand-watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 640px;
+  max-width: 85vw;
+  opacity: 0.07;
+  filter: grayscale(0.25);
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+}
+
+/* Everything that should sit visibly above the watermark. */
+.hazard-stripe, .app, #site-footer {
+  position: relative;
+  z-index: 1;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+/* Small corner emblem next to the title — the "insignia" version of the
+   same art, like a brand mark rather than a full illustration. */
+.brand-emblem {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 30%;
+  border: 1px solid var(--gold);
+  box-shadow: 0 0 10px rgba(255, 198, 26, 0.35);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* Glows and pulses while Deidreich is "speaking" (browser speech synthesis
+   is playing a reply aloud), so the character reads as animatronic rather
+   than just a text box that happens to also make sound. */
+#emblem.speaking {
+  animation: emblem-speak 0.9s ease-in-out infinite;
+}
+@keyframes emblem-speak {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 198, 26, 0.35); transform: scale(1); }
+  50% { box-shadow: 0 0 22px rgba(255, 198, 26, 0.85), 0 0 6px rgba(79, 214, 255, 0.6); transform: scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #emblem.speaking { animation: none; box-shadow: 0 0 18px rgba(255, 198, 26, 0.7); }
+}
+
+header h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.ghost {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ghost:hover { color: var(--text); border-color: var(--muted); }
+.ghost + .ghost { margin-left: 8px; }
+.ghost.voice-off { color: var(--muted); }
+.ghost.voice-on { color: var(--gold); border-color: var(--gold); }
+
+/* Voice-style dropdown, styled to sit alongside the other ghost buttons
+   rather than looking like a native form control. */
+select.voice-select {
+  font-family: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: right 12px center, right 7px center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 26px;
+}
+select.voice-select:hover { color: var(--text); border-color: var(--muted); }
+
+.chat {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 4px;
+}
+
+.empty-hint {
+  text-align: center;
+  margin-top: 40px;
+}
+
+.msg {
+  display: flex;
+}
+.msg.user { justify-content: flex-end; }
+.msg.model { justify-content: flex-start; }
+
+.bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  line-height: 1.4;
+  font-size: 15px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.msg.user .bubble {
+  background: var(--user-bubble);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+.msg.model .bubble {
+  background: var(--model-bubble);
+  color: var(--text);
+  border-bottom-left-radius: 4px;
+}
+
+/* Small "replay" control on each of Deidreich's own replies, so a line can
+   be heard again without re-sending the message. */
+.replay-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 8px;
+  font-size: 12px;
+  padding: 2px 8px;
+  margin-top: 6px;
+  cursor: pointer;
+}
+.replay-btn:hover { color: var(--gold); border-color: var(--gold); }
+
+.error-text {
+  color: var(--error);
+  font-size: 13px;
+  padding: 8px 4px;
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  max-height: 160px;
+}
+.composer textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.composer button {
+  background: var(--accent);
+  color: var(--accent-text);
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.composer button:hover { filter: brightness(1.05); }
+.composer button:disabled { opacity: 0.6; cursor: default; }
+
+/* Attach + mic buttons — visually distinct from the primary Send button
+   (transparent/outlined, same family as the "Clear chat" ghost button)
+   since they're secondary actions, not the thing that submits the form. */
+.composer .icon-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
+  border-radius: 10px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.composer .icon-btn:hover { color: var(--text); border-color: var(--muted); }
+.composer .icon-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Recording state — solid red fill (not just a border tint) plus a growing
+   pulse ring, so it reads as "live" at a glance instead of requiring a close
+   look. The icon glyph itself also swaps to a stop square in app.js. */
+#mic-btn.recording {
+  background: var(--error);
+  color: #2a0a0a;
+  border-color: var(--error);
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 107, 107, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #mic-btn.recording { animation: none; }
+}
+
+/* Pending attachments, shown above the composer before the message is sent. */
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 4px 8px;
+}
+
+.chip, .attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 220px;
+}
+
+.chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+.chip-remove:hover { color: var(--error); }
+
+/* Attachments already sent, shown inside a chat bubble. */
+.msg-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.attachment-thumb {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 10px;
+  display: block;
+}
+
+@media (max-width: 480px) {
+  .app { padding: 10px; }
+  .bubble { max-width: 90%; }
+}
