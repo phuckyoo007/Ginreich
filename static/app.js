@@ -21,6 +21,59 @@ const VOICE_PREF_KEY = 'deidreich-voice-enabled';
 const MAX_FILES = 4;
 const MAX_FILE_BYTES = 6 * 1024 * 1024;
 
+// ---- Access password gate ----
+// Optional: only kicks in if the server was deployed with ACCESS_PASSWORD
+// set (see app.py's /health). Keeps a public Railway URL from being usable
+// by strangers to burn through the (billable) Gemini quota. The password
+// itself never touches this app's own storage in plain sight beyond
+// localStorage on this one device — same tradeoff as everything else here.
+const ACCESS_PW_KEY = 'deidreich-access-password';
+let accessPassword = '';
+try {
+  accessPassword = localStorage.getItem(ACCESS_PW_KEY) || '';
+} catch (e) {
+  // Storage unavailable — treat as no password remembered.
+}
+
+function askForAccessPassword(message) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    overlay.innerHTML = `
+      <form style="background:#1a1a1a;border:1px solid #555;border-radius:10px;padding:24px;max-width:320px;width:90%;text-align:center;font-family:inherit;">
+        <p style="color:#eee;margin:0 0 12px;">${escapeHtml(message || 'Enter the access password to talk to Deidreich.')}</p>
+        <input type="password" autocomplete="current-password" style="width:100%;padding:8px;border-radius:6px;border:1px solid #666;background:#111;color:#eee;box-sizing:border-box;margin-bottom:12px;font-size:16px;">
+        <button type="submit" style="width:100%;padding:8px;border-radius:6px;border:none;background:#4a7;color:#fff;cursor:pointer;font-size:15px;">Continue</button>
+      </form>
+    `;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector('input');
+    input.focus();
+    overlay.querySelector('form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = input.value;
+      overlay.remove();
+      resolve(val);
+    });
+  });
+}
+
+async function ensureAccessPassword() {
+  let health;
+  try {
+    const res = await fetch('/health');
+    health = await res.json();
+  } catch (e) {
+    return; // can't reach the server yet — let the actual chat request surface the error
+  }
+  if (!health || !health.password_required) return;
+  while (!accessPassword) {
+    accessPassword = await askForAccessPassword();
+  }
+  try { localStorage.setItem(ACCESS_PW_KEY, accessPassword); } catch (e) { /* ignore */ }
+}
+const accessPasswordReady = ensureAccessPassword();
+
 let history = [];
 try {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -380,6 +433,8 @@ formEl.addEventListener('submit', async (e) => {
   const text = inputEl.value.trim();
   if (!text && !pendingFiles.length) return;
 
+  await accessPasswordReady;
+
   errorEl.style.display = 'none';
   const message = { role: 'user', text };
   if (pendingFiles.length) message.files = pendingFiles;
@@ -395,10 +450,17 @@ formEl.addEventListener('submit', async (e) => {
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Access-Password': accessPassword },
       body: JSON.stringify({ messages: history }),
     });
     const body = await res.json().catch(() => ({}));
+    if (res.status === 401) {
+      accessPassword = '';
+      try { localStorage.removeItem(ACCESS_PW_KEY); } catch (err) { /* ignore */ }
+      accessPassword = await askForAccessPassword('Wrong password — try again.');
+      try { localStorage.setItem(ACCESS_PW_KEY, accessPassword); } catch (err) { /* ignore */ }
+      throw new Error('Wrong password — send your message again.');
+    }
     if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`);
     history.push({ role: 'model', text: body.reply });
     render();
