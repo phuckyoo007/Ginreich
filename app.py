@@ -49,6 +49,11 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash").strip()
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
+# Optional gate so a public Railway URL can't be used by strangers to burn
+# through the (billable) Gemini quota. When unset, the app is open to
+# anyone, same as before this was added.
+ACCESS_PASSWORD = os.environ.get("ACCESS_PASSWORD", "").strip()
+
 # Deidreich's fixed persona, sent as Gemini's systemInstruction on every
 # request. Kept server-side (not editable from the browser) so the
 # character holds no matter what the frontend sends.
@@ -200,7 +205,12 @@ def health():
     # Deliberately 200 even without a configured key — a missing API key is
     # a configuration problem for the one feature that needs it, not a
     # reason to fail Railway's healthcheck and get the deploy marked down.
-    return jsonify({"status": "ok", "gemini_configured": bool(GEMINI_API_KEY), "model": GEMINI_MODEL})
+    return jsonify({
+        "status": "ok",
+        "gemini_configured": bool(GEMINI_API_KEY),
+        "model": GEMINI_MODEL,
+        "password_required": bool(ACCESS_PASSWORD),
+    })
 
 
 @app.errorhandler(413)
@@ -215,6 +225,9 @@ def chat():
             "error": "This server doesn't have a Gemini API key configured yet. "
                      "Set the GEMINI_API_KEY environment variable and redeploy."
         }), 503
+
+    if ACCESS_PASSWORD and request.headers.get("X-Access-Password", "") != ACCESS_PASSWORD:
+        return jsonify({"error": "Wrong or missing access password."}), 401
 
     ip = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
     if _rate_limited(ip):
