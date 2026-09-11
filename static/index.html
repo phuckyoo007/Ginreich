@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistant</title>
+<style>
+  :root{
+    --bg:#f6f5f2; --surface:#ffffff; --border:#e4e1da;
+    --ink:#22201c; --ink-muted:#77726a;
+    --accent:#3b6e5e; --accent-ink:#ffffff;
+    --bubble-user:#3b6e5e; --bubble-user-ink:#ffffff;
+    --bubble-bot:#efece5; --bubble-bot-ink:#22201c;
+    --warn-bg:#fbeee0; --warn-ink:#8a5a1f; --warn-border:#e9c896;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#191a18; --surface:#212320; --border:#33352f;
+      --ink:#ece9e2; --ink-muted:#9a9a90;
+      --accent:#6fae94; --accent-ink:#0e1512;
+      --bubble-user:#6fae94; --bubble-user-ink:#0e1512;
+      --bubble-bot:#2a2c27; --bubble-bot-ink:#ece9e2;
+      --warn-bg:#332818; --warn-ink:#e9c896; --warn-border:#5a4626;
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column;
+  }
+  header{
+    padding:14px 20px; border-bottom:1px solid var(--border); background:var(--surface);
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  header h1{font-size:16px; margin:0; font-weight:600;}
+  header .model{font-size:12px; color:var(--ink-muted); font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  #banner{
+    display:none; margin:12px 16px 0; padding:10px 14px; border-radius:8px;
+    background:var(--warn-bg); color:var(--warn-ink); border:1px solid var(--warn-border);
+    font-size:13.5px; line-height:1.5;
+  }
+  #banner.show{display:block;}
+  #banner code{background:rgba(0,0,0,0.08); padding:1px 5px; border-radius:4px;}
+  main{flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:12px; max-width:760px; width:100%; margin:0 auto;}
+  .msg{max-width:72%; padding:10px 14px; border-radius:14px; line-height:1.5; font-size:14.5px; white-space:pre-wrap; word-wrap:break-word;}
+  .msg.user{align-self:flex-end; background:var(--bubble-user); color:var(--bubble-user-ink); border-bottom-right-radius:4px;}
+  .msg.bot{align-self:flex-start; background:var(--bubble-bot); color:var(--bubble-bot-ink); border-bottom-left-radius:4px;}
+  .msg.bot.pending{color:var(--ink-muted); font-style:italic;}
+  .msg.error{align-self:flex-start; background:var(--warn-bg); color:var(--warn-ink); border:1px solid var(--warn-border);}
+  .empty-state{margin:auto; text-align:center; color:var(--ink-muted); font-size:14px; max-width:320px;}
+  footer{
+    border-top:1px solid var(--border); background:var(--surface); padding:14px 16px;
+    display:flex; justify-content:center;
+  }
+  form{display:flex; gap:8px; max-width:760px; width:100%;}
+  textarea{
+    flex:1; resize:none; border:1px solid var(--border); border-radius:10px; background:var(--bg);
+    color:var(--ink); font:inherit; font-size:14.5px; padding:10px 12px; max-height:140px;
+  }
+  textarea:focus, button:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+  button{
+    border:none; background:var(--accent); color:var(--accent-ink); font-weight:600;
+    border-radius:10px; padding:0 20px; cursor:pointer; font-size:14px;
+  }
+  button:disabled{opacity:.5; cursor:not-allowed;}
+  #login-overlay{
+    position:fixed; inset:0; background:var(--bg); display:none;
+    align-items:center; justify-content:center; z-index:10; padding:20px;
+  }
+  #login-overlay.show{display:flex;}
+  .login-box{
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:26px 24px; max-width:320px; width:100%;
+  }
+  .login-box h2{margin:0 0 6px; font-size:17px;}
+  .login-box p{margin:0 0 16px; font-size:13.5px; color:var(--ink-muted); line-height:1.5;}
+  .login-box input{
+    width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border);
+    background:var(--bg); color:var(--ink); font-size:14.5px; margin-bottom:10px;
+  }
+  .login-box input:focus{outline:2px solid var(--accent); outline-offset:1px;}
+  .login-box button{width:100%; padding:10px; margin-top:2px;}
+  .login-error{color:var(--warn-ink); font-size:13px; margin:-4px 0 10px; display:none;}
+  .login-error.show{display:block;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+  <div id="login-overlay">
+    <form class="login-box" id="login-form">
+      <h2>Locked</h2>
+      <p>This assistant is password-protected so a stray link doesn't run up someone else's API bill.</p>
+      <div class="login-error" id="login-error">Wrong password — try again.</div>
+      <input type="password" id="login-input" placeholder="Password" autocomplete="current-password">
+      <button type="submit">Unlock</button>
+    </form>
+  </div>
+  <header>
+    <h1>Assistant</h1>
+    <span class="model" id="model-tag"></span>
+  </header>
+  <div id="banner"></div>
+  <main id="messages">
+    <div class="empty-state" id="empty-state">Ask it anything — it remembers this conversation until you reload the page.</div>
+  </main>
+  <footer>
+    <form id="form">
+      <textarea id="input" rows="1" placeholder="Message the assistant…" autofocus></textarea>
+      <button type="submit" id="send">Send</button>
+    </form>
+  </footer>
+
+<script>
+const messagesEl = document.getElementById('messages');
+const emptyState = document.getElementById('empty-state');
+const form = document.getElementById('form');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const banner = document.getElementById('banner');
+const modelTag = document.getElementById('model-tag');
+const loginOverlay = document.getElementById('login-overlay');
+const loginForm = document.getElementById('login-form');
+const loginInput = document.getElementById('login-input');
+const loginError = document.getElementById('login-error');
+
+let history = [];   // {role:'user'|'assistant', content:string}
+let configured = true;
+let accessPassword = localStorage.getItem('assistant-password') || '';
+
+function showLogin(withError){
+  loginError.classList.toggle('show', !!withError);
+  loginOverlay.classList.add('show');
+  loginInput.value = '';
+  loginInput.focus();
+}
+
+loginForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  accessPassword = loginInput.value;
+  localStorage.setItem('assistant-password', accessPassword);
+  loginOverlay.classList.remove('show');
+  input.focus();
+});
+
+function addBubble(role, text, extraClass){
+  emptyState.remove();
+  const div = document.createElement('div');
+  div.className = 'msg ' + role + (extraClass ? ' ' + extraClass : '');
+  div.textContent = text;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+
+async function checkHealth(){
+  try{
+    const r = await fetch('/api/health');
+    const d = await r.json();
+    configured = d.configured;
+    modelTag.textContent = d.model || '';
+    if(!configured){
+      banner.classList.add('show');
+      banner.innerHTML = 'No API key configured yet. Set <code>OPENAI_API_KEY</code> in the server environment and restart.';
+    }
+    if(d.passwordRequired && !accessPassword){
+      showLogin(false);
+    }
+  }catch(e){
+    banner.classList.add('show');
+    banner.textContent = "Can't reach the local server — make sure app.py is running.";
+  }
+}
+
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+});
+
+input.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    form.requestSubmit();
+  }
+});
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+  addBubble('user', text);
+  history.push({role:'user', content:text});
+
+  sendBtn.disabled = true;
+  const pending = addBubble('bot', 'Thinking…', 'pending');
+
+  try{
+    const r = await fetch('/api/chat', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Access-Password': accessPassword
+      },
+      body: JSON.stringify({messages: history})
+    });
+    const data = await r.json();
+    pending.remove();
+    if(r.status === 401){
+      accessPassword = '';
+      localStorage.removeItem('assistant-password');
+      history.pop(); // don't count the message that never actually sent
+      showLogin(true);
+    } else if(!r.ok){
+      addBubble('bot', data.error || 'Something went wrong.', 'error');
+    } else {
+      addBubble('bot', data.reply);
+      history.push({role:'assistant', content:data.reply});
+    }
+  }catch(err){
+    pending.remove();
+    addBubble('bot', 'Network error talking to the local server.', 'error');
+  }finally{
+    sendBtn.disabled = false;
+    input.focus();
+  }
+});
+
+checkHealth();
+</script>
+</body>
+</html>
