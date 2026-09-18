@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Token Exchange -- Portfolio</title>
+  <meta name="description" content="Read-only, non-custodial portfolio viewer for any public EVM address. No private keys, ever." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23ddac4d'/%3E%3Ccircle cx='16' cy='16' r='15' fill='none' stroke='%23241a06' stroke-width='2'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div>
+          <h1>Token Exchange -- Portfolio</h1>
+          <p>Read-only web companion. No private keys ever touch this page.</p>
+        </div>
+      </div>
+      <div class="currency-picker">
+        <label for="currency-select">Display currency</label>
+        <select id="currency-select"></select>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>View an address</h2>
+      <div class="address-row">
+        <input type="text" id="address-input" placeholder="0x... (any public EVM address)" />
+        <button class="primary" id="btn-view-address">View portfolio</button>
+        <button id="btn-save-address">Save</button>
+      </div>
+      <div id="address-error" class="error-msg" hidden></div>
+      <div id="saved-chips" class="saved-chips"></div>
+
+      <div id="viewer-summary" class="viewer-summary" hidden>
+        <div id="identicon-box"></div>
+        <div>
+          <div class="total-label">Total portfolio value</div>
+          <div class="total-value" id="total-value">--</div>
+          <div class="addr-mono" id="summary-address"></div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="small" id="btn-toggle-qr">Show / hide QR</button>
+          <button class="small" id="btn-copy-address">Copy address</button>
+        </div>
+        <div class="qr-box" id="qr-box"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Balances by network</h2>
+      <p class="empty-hint" style="margin-top:-6px">Enter an address above to load balances across every built-in network. Each row's native balance comes straight from that network's own public RPC endpoint -- nothing about you is sent, just "what does this address hold right now", the same read a block explorer does.</p>
+      <div class="network-grid" id="network-grid"></div>
+
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer; color:var(--text-muted); font-size:12.5px;">Add a custom network / your own RPC</summary>
+        <div id="custom-network-form" class="custom-network-form">
+          <input type="number" id="cn-chainid" placeholder="Chain ID" />
+          <input type="text" id="cn-name" placeholder="Network name" />
+          <input type="text" id="cn-symbol" placeholder="Native symbol (e.g. ETH)" />
+          <input type="text" id="cn-rpc" placeholder="RPC URL (https://...)" />
+          <button class="small" id="btn-add-network">Add network</button>
+        </div>
+        <div id="custom-network-error" class="error-msg" hidden></div>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>Prices</h2>
+      <div class="price-board" id="price-board"></div>
+    </section>
+
+    <section class="card">
+      <h2>Trending markets <span style="font-weight:400;color:var(--text-faint);font-size:11.5px;">(Polymarket, informational only -- no bets placed here)</span></h2>
+      <div id="markets-board"></div>
+    </section>
+
+    <footer class="foot">
+      <p><strong>What this page is:</strong> a read-only viewer. It never asks for, generates, imports, stores, or transmits a private key or recovery phrase -- there is nothing here that could hold one. It only ever looks up public balances for an address you paste in.</p>
+      <p><strong>What it talks to:</strong> the public RPC endpoint of whichever network you're viewing (to read a balance), <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>'s free public API (for prices), and <a href="https://polymarket.com/" target="_blank" rel="noopener">Polymarket</a>'s public Gamma API (for the trending-markets card). No account, no analytics, no server of ours in between -- your browser talks to those three directly.</p>
+      <p><strong>Where your data lives:</strong> saved addresses, tracked tokens, your currency choice, and your watchlist stars are stored only in this browser's local storage. Clearing your browser data clears them. Nothing is synced anywhere.</p>
+      <p>Companion to the Token Exchange browser extension -- a separate, self-custody wallet that <em>does</em> hold keys (encrypted, on your device only) and can send/swap. This page is intentionally unable to do either.</p>
+    </footer>
+  </div>
+
+  <script src="vendor/ethers.umd.min.js"></script>
+  <script src="vendor/qrcode-generator.js"></script>
+  <script src="lib/identicon.js"></script>
+  <script src="lib/networks.js"></script>
+  <script src="lib/prices.js"></script>
+  <script src="lib/polymarket.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
